@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Define kernel versions
@@ -13,7 +12,7 @@ KERNEL_VERSIONS=(
 download_kernel() {
     local version="$1"
     if [[ "$version" == *"-rc"* ]]; then
-        aria2c "https://git.kernel.org/torvalds/t/linux-${version}.tar.gz"
+        aria2c "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/snapshot/linux-${version}.tar.gz"
     else
         aria2c "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${version}.tar.xz"
     fi
