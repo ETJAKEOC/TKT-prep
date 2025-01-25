@@ -174,7 +174,7 @@ _prompt_user() {
                 elif [[ -f /etc/portage/make.conf ]]; then
                     _MAKE_JOBS=$(grep -E '^MAKEOPTS=' /etc/portage/make.conf | sed 's/.*-j\([0-9]\+\).*/\1/')
                 else
-                    echo "Configuration file for make jobs not found. Please check your makepkg/make.conf. Defaulting to nproc."
+                    echo "Configuration file for make jobs not found. Defaulting to nproc."
                     _MAKE_JOBS=$(nproc)
                 fi
                 ;;
