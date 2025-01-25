@@ -121,7 +121,8 @@ _prompt_user() {
         fi
         if [ -f "patches/more-uarches.patch" ]; then
             echo "Applying more-uarches.patch..."
-            patch -Np1 < patches/more-uarches.patch
+	    cd ${_BUILD_DIR}
+            patch -Np1 < ${_PATCHES_DIR}/more-uarches.patch
         else
             echo "more-uarches.patch not found."
             exit 1
@@ -197,7 +198,7 @@ _prepare_kernel_source() {
 _apply_patches() {
     if [ -d "$_PATCHES_DIR" ]; then
         echo "Applying patches from $_PATCHES_DIR..."
-        for patch in $_PATCHES_DIR/*.patch; do
+        for patch in $_PATCHES_DIR/0*.patch; do
             patch -Np1 < $patch
         done
     else
