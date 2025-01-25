@@ -27,7 +27,8 @@ prompt_user() {
         echo "1. 6.1 (LTS)"
         echo "2. 6.6 (Stable)"
         echo "3. 6.12 (Latest)"
-        read -p "Enter the number for the kernel version you want to compile (1-3): " KERNEL_CHOICE
+        echo "4. 6.13 (Latest Stable)"
+        read -p "Enter the number for the kernel version you want to compile (1-4): " KERNEL_CHOICE
         case $KERNEL_CHOICE in
             1)
                 KERNEL_VERSION="6.1"
@@ -37,6 +38,9 @@ prompt_user() {
                 ;;
             3)
                 KERNEL_VERSION="6.12"
+                ;;
+            4)
+                KERNEL_VERSION="6.13"
                 ;;
             *)
                 echo "Invalid choice."
