@@ -151,15 +151,36 @@ _prompt_user() {
 # Function to download and extract kernel source
 _prepare_kernel_source() {
     KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v${_KERNEL_VERSION:0:1}.x/linux-${_KERNEL_VERSION}.tar.xz"
-    echo "Downloading kernel version ${_KERNEL_VERSION} from ${KERNEL_URL}..."
-    wget $KERNEL_URL -O linux-${_KERNEL_VERSION}.tar.xz
+    TAR_FILE="linux-${_KERNEL_VERSION}.tar.xz"
 
-    echo "Creating build directory $_BUILD_DIR..."
-    mkdir -p $_BUILD_DIR
+    if [ -f "$TAR_FILE" ]; then
+        echo "Kernel tarball already downloaded. Not redownloading."
+    else
+        echo "Downloading kernel version ${_KERNEL_VERSION} from ${KERNEL_URL}..."
+        wget $KERNEL_URL -O $TAR_FILE
+    fi
 
-    echo "Extracting kernel source to $_BUILD_DIR..."
-    tar -xf linux-${_KERNEL_VERSION}.tar.xz -C $_BUILD_DIR --strip-components=1
-    cd $_BUILD_DIR
+    if [ -d "$_BUILD_DIR" ]; then
+        echo "Build directory $_BUILD_DIR already exists. Cleaning..."
+        cd $_BUILD_DIR
+        if make mrproper; then
+            echo "Successfully cleaned $_BUILD_DIR."
+        else
+            echo "Failed to clean $_BUILD_DIR. Going nuclear and redownloading the kernel."
+            cd ..
+            rm -rf $_BUILD_DIR
+            mkdir -p $_BUILD_DIR
+            echo "Extracting kernel source to $_BUILD_DIR..."
+            tar -xf ../$TAR_FILE -C $_BUILD_DIR --strip-components=1
+            cd $_BUILD_DIR
+        fi
+    else
+        echo "Creating build directory $_BUILD_DIR..."
+        mkdir -p $_BUILD_DIR
+        echo "Extracting kernel source to $_BUILD_DIR..."
+        tar -xf $TAR_FILE -C $_BUILD_DIR --strip-components=1
+        cd $_BUILD_DIR
+    fi
 }
 
 # Function to apply patches
