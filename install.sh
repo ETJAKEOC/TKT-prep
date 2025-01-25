@@ -61,6 +61,11 @@ _prompt_user() {
         _PATCHES_DIR="$_SCRIPT_DIR/patches/$_KERNEL_VERSION"
     fi
 
+    if [ ! -d "$_PATCHES_DIR" ]; then
+        echo "Patches directory $_PATCHES_DIR not found. Please ensure you have a copy of the repository."
+        exit 1
+    fi
+
     if [ -z "$_CONFIG_OPTION" ]; then
         echo "Choose your kernel configuration option:"
         echo "1. Provide your own config file"
@@ -152,6 +157,34 @@ _prompt_user() {
                 ;;
         esac
     fi
+
+    if [ -z "$_MAKE_JOBS_OPTION" ]; then
+        echo "Choose the number of make jobs:"
+        echo "1. User-defined"
+        echo "2. Arch/Gentoo makepkg.conf/make.conf"
+        echo "3. nproc (number of available processors)"
+        read -p "Enter choice (1-3): " _MAKE_JOBS_CHOICE
+        case $_MAKE_JOBS_CHOICE in
+            1)
+                read -p "Enter the number of make jobs: " _MAKE_JOBS
+                ;;
+            2)
+                if [[ -f /etc/makepkg.conf ]]; then
+                    _MAKE_JOBS=$(grep -E '^MAKEFLAGS=' /etc/makepkg.conf | sed 's/.*-j\([0-9]\+\).*/\1/')
+                elif [[ -f /etc/portage/make.conf ]]; then
+                    _MAKE_JOBS=$(grep -E '^MAKEOPTS=' /etc/portage/make.conf | sed 's/.*-j\([0-9]\+\).*/\1/')
+                else
+                    echo "Configuration file for make jobs not found. Please check your makepkg/make.conf. Defaulting to nproc."
+                    _MAKE_JOBS=$(nproc)
+                fi
+                ;;
+            3|*)
+                _MAKE_JOBS=$(nproc)
+                ;;
+        esac
+    else
+        _MAKE_JOBS=$(( $(nproc) / 2 ))
+    fi
 }
 
 # Function to download and extract kernel source
@@ -169,11 +202,12 @@ _prepare_kernel_source() {
     if [ -d "$_BUILD_DIR" ]; then
         echo "Build directory $_BUILD_DIR already exists. Cleaning..."
         rm -rf $_BUILD_DIR
-        echo "Extracting kernel source to $_BUILD_DIR..."
-        mkdir -p $_BUILD_DIR
-        tar -xf $TAR_FILE -C $_BUILD_DIR --strip-components=1
-        cd $_BUILD_DIR
     fi
+
+    echo "Extracting kernel source to $_BUILD_DIR..."
+    mkdir -p $_BUILD_DIR
+    tar -xf $TAR_FILE -C $_BUILD_DIR --strip-components=1
+    cd $_BUILD_DIR
 }
 
 # Function to apply patches
@@ -182,19 +216,29 @@ _apply_patches() {
         echo "Applying patches from $_PATCHES_DIR..."
         for patch in $_PATCHES_DIR/*.patch; do
             patch -Np1 < $patch
+            if [ $? -ne 0 ]; then
+                echo "Failed to apply patch $patch"
+                exit 1
+            fi
         done
     else
         echo "No patches directory found."
+        exit 1
     fi
+
     if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
         if [ -f "$_SCRIPT_DIR/patches/more-uarches.patch" ]; then
             echo "Applying more-uarches.patch..."
             patch -Np1 < "$_SCRIPT_DIR/patches/more-uarches.patch"
+            if [ $? -ne 0 ]; then
+                echo "Failed to apply more-uarches.patch"
+                exit 1
+            fi
         else
             echo "more-uarches.patch not found."
             exit 1
         fi
-   fi
+    fi
 }
 
 # Function to configure the kernel
@@ -250,7 +294,11 @@ _configure_kernel() {
 _compile_kernel() {
     echo "Compiling the kernel..."
     sed -i "s/-O2/-$_OPT_LEVEL/" Makefile
-    time $_MAKE -j$(nproc) CC=$_COMPILER bzImage modules headers
+    time $_MAKE -j$_MAKE_JOBS CC=$_COMPILER bzImage modules headers
+    if [ $? -ne 0 ]; then
+        echo "Kernel compilation failed."
+        exit 1
+    fi
 }
 
 # Main script execution
@@ -271,6 +319,7 @@ _main() {
     echo "Optimization Level: $_OPT_LEVEL"
     echo "Configuration Tool: $_CONFIG_TOOL"
     echo "Build Directory: $_BUILD_DIR"
+    echo "Number of Make Jobs: $_MAKE_JOBS"
     echo "Distribution: $_DISTRO"
 
     # Add additional steps here (package, install)
