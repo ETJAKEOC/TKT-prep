@@ -101,10 +101,13 @@ _prompt_user() {
         esac
     fi
 
-    if [ -z "$_CPU_MARCH" ]; then
+    if [ -z "$_CPU_OPTIMIZE" ]; then
         echo "Do you want to optimize the kernel for your specific CPU architecture? (yes/no)"
         read -p "Enter choice: " _CPU_OPTIMIZE
-        if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
+    fi
+
+    if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
+        if [ -z "$_CPU_MARCH" ]; then
             if [[ "$_COMPILER" == "clang" ]]; then
                 _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
                 _MAKE='make LLVM=1 LLVM_IAS=1'
@@ -115,13 +118,20 @@ _prompt_user() {
                 echo "Unsupported compiler."
                 exit 1
             fi
-        else
-            _CPU_MARCH="x86-64-v1"
         fi
+        if [ -f "patches/more-uarches.patch" ]; then
+            echo "Applying more-uarches.patch..."
+            patch -Np1 < patches/more-uarches.patch
+        else
+            echo "more-uarches.patch not found."
+            exit 1
+        fi
+    else
+        _CPU_MARCH="x86-64-v1"
     fi
 
     if [ -z "$_OPT_LEVEL" ]; then
-        read -p "Enter the optimization level (e.g., O2, O3): " _OPT_LEVEL
+        read -p "Enter the optimization level (e.g., O1, O2, O3): " _OPT_LEVEL
     fi
 
     if [ -z "$_CONFIG_TOOL" ]; then
