@@ -3,8 +3,8 @@
 # Determine the directory where the script is running from
 _SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 
-# Function to detect the Linux distribution
-_detect_distro() {
+# Function to detect the Linux distribution and prepare kernel source
+_prepare_env_and_source() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         _DISTRO=$ID
@@ -12,183 +12,7 @@ _detect_distro() {
         echo "Unsupported Linux distribution."
         exit 1
     fi
-}
 
-# Function to load configuration from customization.cfg
-_load_config() {
-    if [ -f "$_SCRIPT_DIR/customization.cfg" ]; then
-        . "$_SCRIPT_DIR/customization.cfg"
-    else
-        echo "Configuration file not found."
-    fi
-}
-
-# Function to prompt for user input if not specified in customization.cfg
-_prompt_user() {
-    if [ -z "$_KERNEL_VERSION" ]; then
-        echo "Available kernel versions to promote:"
-        echo "1. 6.1 (LTS)"
-        echo "2. 6.6 (LTS)"
-        echo "3. 6.12 (Stable)"
-        echo "4. 6.13 (Latest Stable)"
-        read -p "Enter the number for the kernel version you want to compile (1-4): " _KERNEL_CHOICE
-        case $_KERNEL_CHOICE in
-            1)
-                _KERNEL_VERSION="6.1"
-                ;;
-            2)
-                _KERNEL_VERSION="6.6"
-                ;;
-            3)
-                _KERNEL_VERSION="6.12"
-                ;;
-            4)
-                _KERNEL_VERSION="6.13"
-                ;;
-            *)
-                echo "Invalid choice."
-                exit 1
-                ;;
-        esac
-    fi
-
-    if [ -z "$_BUILD_DIR" ]; then
-        read -p "Enter the directory to store the kernel source (default: linux-src): " _BUILD_DIR
-        _BUILD_DIR=${_BUILD_DIR:-linux-src}
-    fi
-
-    if [ -z "$_PATCHES_DIR" ]; then
-        _PATCHES_DIR="$_SCRIPT_DIR/patches/$_KERNEL_VERSION"
-    fi
-
-    if [ ! -d "$_PATCHES_DIR" ]; then
-        echo "Patches directory $_PATCHES_DIR not found. Please ensure you have a copy of the repository."
-        exit 1
-    fi
-
-    if [ -z "$_CONFIG_OPTION" ]; then
-        echo "Choose your kernel configuration option:"
-        echo "1. Provide your own config file"
-        echo "2. Use running kernel config"
-        echo "3. Use localmodconfig"
-        echo "4. Use blank defconfig"
-        read -p "Enter choice (1-4): " _CONFIG_CHOICE
-        case $_CONFIG_CHOICE in
-            1)
-                read -p "Enter the path to your config file: " _CONFIG_FILE
-                _CONFIG_OPTION="custom"
-                ;;
-            2)
-                _CONFIG_OPTION="running-kernel"
-                ;;
-            3)
-                _CONFIG_OPTION="localmodconfig"
-                ;;
-            4)
-                _CONFIG_OPTION="blank"
-                ;;
-            *)
-                echo "Invalid choice."
-                exit 1
-                ;;
-        esac
-    fi
-
-    if [ -z "$_COMPILER" ]; then
-        echo "Choose your compiler:"
-        echo "1. Clang (default)"
-        echo "2. GCC"
-        read -p "Enter choice (1-2): " _COMPILER_CHOICE
-        case $_COMPILER_CHOICE in
-            1|*)
-                _COMPILER="clang"
-                ;;
-            2)
-                _COMPILER="gcc"
-                ;;
-        esac
-    fi
-
-    if [ -z "$_CPU_OPTIMIZE" ]; then
-        echo "Do you want to optimize the kernel for your specific CPU architecture? (yes/no)"
-        read -p "Enter choice: " _CPU_OPTIMIZE
-    fi
-
-    if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
-        if [ -z "$_CPU_MARCH" ]; then
-            if [[ "$_COMPILER" == "clang" ]]; then
-                _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
-                _CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
-            elif [[ "$_COMPILER" == "gcc" ]]; then
-                _CPU_MARCH=$(gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
-                _CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH"
-            else
-                echo "Unsupported compiler."
-                exit 1
-            fi
-        fi
-    else
-        _CPU_MARCH="x86-64-v1"
-    fi
-
-    if [ -z "$_OPT_LEVEL" ]; then
-        read -p "Enter the optimization level (e.g., O1, O2, O3): " _OPT_LEVEL
-    fi
-
-    if [ -z "$_CONFIG_TOOL" ]; then
-        echo "Choose your configuration tool:"
-        echo "1. menuconfig"
-        echo "2. nconfig"
-        echo "3. Skip configuration"
-        read -p "Enter choice (1-3): " _CONFIG_TOOL_CHOICE
-        case $_CONFIG_TOOL_CHOICE in
-            1)
-                _CONFIG_TOOL="menuconfig"
-                ;;
-            2)
-                _CONFIG_TOOL="nconfig"
-                ;;
-            3)
-                _CONFIG_TOOL="skip"
-                ;;
-            *)
-                echo "Invalid choice."
-                exit 1
-                ;;
-        esac
-    fi
-
-    if [ -z "$_MAKE_JOBS_OPTION" ]; then
-        echo "Choose the number of make jobs:"
-        echo "1. User-defined"
-        echo "2. Arch/Gentoo makepkg.conf/make.conf"
-        echo "3. nproc (number of available processors)"
-        read -p "Enter choice (1-3): " _MAKE_JOBS_CHOICE
-        case $_MAKE_JOBS_CHOICE in
-            1)
-                read -p "Enter the number of make jobs: " _MAKE_JOBS
-                ;;
-            2)
-                if [[ -f /etc/makepkg.conf ]]; then
-                    _MAKE_JOBS=$(grep -E '^MAKEFLAGS=' /etc/makepkg.conf | sed 's/.*-j\([0-9]\+\).*/\1/')
-                elif [[ -f /etc/portage/make.conf ]]; then
-                    _MAKE_JOBS=$(grep -E '^MAKEOPTS=' /etc/portage/make.conf | sed 's/.*-j\([0-9]\+\).*/\1/')
-                else
-                    echo "Configuration file for make jobs not found. Defaulting to nproc."
-                    _MAKE_JOBS=$(nproc)
-                fi
-                ;;
-            3|*)
-                _MAKE_JOBS=$(nproc)
-                ;;
-        esac
-    else
-        _MAKE_JOBS=$(( $(nproc) / 2 ))
-    fi
-}
-
-# Function to download and extract kernel source
-_prepare_kernel_source() {
     KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v${_KERNEL_VERSION:0:1}.x/linux-${_KERNEL_VERSION}.tar.xz"
     TAR_FILE="linux-${_KERNEL_VERSION}.tar.xz"
 
@@ -212,30 +36,25 @@ _prepare_kernel_source() {
 
 # Function to apply patches
 _apply_patches() {
-    if [ -d "$_PATCHES_DIR" ]; then
-        echo "Applying patches from $_PATCHES_DIR..."
-        for patch in $_PATCHES_DIR/*.patch; do
-            patch -Np1 < $patch
-            if [ $? -ne 0 ]; then
-                echo "Failed to apply patch $patch"
-                exit 1
-            fi
-        done
-    else
-        echo "No patches directory found."
+    if [ ! -d "$_PATCHES_DIR" ]; then
+        echo "Patches directory $_PATCHES_DIR not found. Please ensure you have a copy of the repository."
         exit 1
     fi
 
-    if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
-        if [ -f "$_SCRIPT_DIR/patches/more-uarches.patch" ]; then
-            echo "Applying more-uarches.patch..."
-            patch -Np1 < "$_SCRIPT_DIR/patches/more-uarches.patch"
-            if [ $? -ne 0 ]; then
-                echo "Failed to apply more-uarches.patch"
-                exit 1
-            fi
-        else
-            echo "more-uarches.patch not found."
+    echo "Applying patches from $_PATCHES_DIR..."
+    for patch in $_PATCHES_DIR/*.patch; do
+        patch -Np1 < $patch
+        if [ $? -ne 0 ]; then
+            echo "Failed to apply patch $patch"
+            exit 1
+        fi
+    done
+
+    if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]] && [ -f "$_SCRIPT_DIR/patches/more-uarches.patch" ]; then
+        echo "Applying more-uarches.patch..."
+        patch -Np1 < "$_SCRIPT_DIR/patches/more-uarches.patch"
+        if [ $? -ne 0 ]; then
+            echo "Failed to apply more-uarches.patch"
             exit 1
         fi
     fi
@@ -245,36 +64,17 @@ _apply_patches() {
 _configure_kernel() {
     case $_CONFIG_OPTION in
         "custom")
-            if [ -f "$_CONFIG_FILE" ]; then
-                echo "Copying custom config from $_CONFIG_FILE..."
-                cp $_CONFIG_FILE .config
-            else
-                echo "Custom config file not found."
-                exit 1
-            fi
+            [ -f "$_CONFIG_FILE" ] && cp $_CONFIG_FILE .config || { echo "Custom config file not found."; exit 1; }
             ;;
         "running-kernel")
-            if [ -f /proc/config.gz ]; then
-                echo "Using config from running kernel..."
-                zcat /proc/config.gz > .config
-            else
-                echo "/proc/config.gz not found."
-                exit 1
-            fi
+            [ -f /proc/config.gz ] && zcat /proc/config.gz > .config || { echo "/proc/config.gz not found."; exit 1; }
             ;;
         "localmodconfig")
-            echo "Using localmodconfig..."
             make localmodconfig
             ;;
         "blank")
             _DEFAULT_DEFCONFIG="configs/$_KERNEL_VERSION/config.x86_64"
-            if [ -f "$_DEFAULT_DEFCONFIG" ]; then
-                echo "Using default defconfig from $_DEFAULT_DEFCONFIG..."
-                cp $_DEFAULT_DEFCONFIG .config
-            else
-                echo "Default defconfig not found."
-                exit 1
-            fi
+            [ -f "$_DEFAULT_DEFCONFIG" ] && cp $_DEFAULT_DEFCONFIG .config || { echo "Default defconfig not found."; exit 1; }
             ;;
         *)
             echo "Invalid configuration option."
@@ -282,31 +82,203 @@ _configure_kernel() {
             ;;
     esac
 
-    if [ "$_CONFIG_TOOL" != "skip" ]; then
-        echo "Running $_CONFIG_TOOL..."
-        make $_CONFIG_TOOL
-    else
-        echo "Skipping configuration step."
-    fi
+    [ "$_CONFIG_TOOL" != "skip" ] && make $_CONFIG_TOOL && echo "Kernel configuration completed." || echo "Skipping configuration step."
 }
 
 # Function to compile the kernel
 _compile_kernel() {
     echo "Compiling the kernel..."
     sed -i "s/-O2/-$_OPT_LEVEL/" Makefile
-    time make -j$_MAKE_JOBS CC=$_COMPILER CFLAGS="$_CFLAGS $CFLAGS" bzImage modules headers
-    if [ $? -ne 0 ]; then
-        echo "Kernel compilation failed."
-        exit 1
-    fi
+    time make -j$_MAKE_JOBS CC=$_COMPILER CFLAGS="$CFLAGS" bzImage modules headers
+    [ $? -ne 0 ] && { echo "Kernel compilation failed."; exit 1; }
 }
 
 # Main script execution
 _main() {
-    _detect_distro
-    _load_config
-    _prompt_user
-    _prepare_kernel_source
+    # Load config
+    [ -f "$_SCRIPT_DIR/customization.cfg" ] && . "$_SCRIPT_DIR/customization.cfg" || echo "Configuration file not found."
+
+    # Prompt for kernel version with 6.13 as the default
+    echo "Available kernel versions to promote:"
+    echo "1. 6.1 (LTS)"
+    echo "2. 6.6 (LTS)"
+    echo "3. 6.12 (Stable)"
+    echo "4. 6.13 (Latest Stable, default)"
+    read -p "Enter the number for the kernel version you want to compile (1-4): " _KERNEL_CHOICE
+    case $_KERNEL_CHOICE in
+        1)
+            _KERNEL_VERSION="6.1"
+            ;;
+        2)
+            _KERNEL_VERSION="6.6"
+            ;;
+        3)
+            _KERNEL_VERSION="6.12"
+            ;;
+        4|"")
+            _KERNEL_VERSION="6.13"
+            ;;
+        *)
+            echo "Invalid choice. Defaulting to 6.13."
+            _KERNEL_VERSION="6.13"
+            ;;
+    esac
+
+    # Prompt for build directory
+    read -p "Enter the directory to store the kernel source (default: linux-src): " _BUILD_DIR
+    _BUILD_DIR=${_BUILD_DIR:-linux-src}
+
+    # Set patches directory
+    _PATCHES_DIR="$_SCRIPT_DIR/patches/$_KERNEL_VERSION"
+
+    # Prompt for configuration option
+    echo "Choose your kernel configuration option:"
+    echo "1. Provide your own config file"
+    echo "2. Use running kernel config"
+    echo "3. Use localmodconfig"
+    echo "4. Use blank defconfig"
+    read -p "Enter choice (1-4): " _CONFIG_CHOICE
+    case $_CONFIG_CHOICE in
+        1)
+            read -p "Enter the path to your config file: " _CONFIG_FILE
+            _CONFIG_OPTION="custom"
+            ;;
+        2)
+            _CONFIG_OPTION="running-kernel"
+            ;;
+        3)
+            _CONFIG_OPTION="localmodconfig"
+            ;;
+        4|"")
+            _CONFIG_OPTION="blank"
+            ;;
+        *)
+            echo "Invalid choice. Defaulting to blank defconfig."
+            _CONFIG_OPTION="blank"
+            ;;
+    esac
+
+    # Prompt for compiler with clang as the default
+    echo "Choose your compiler:"
+    echo "1. Clang (default)"
+    echo "2. GCC"
+    read -p "Enter choice (1-2): " _COMPILER_CHOICE
+    case $_COMPILER_CHOICE in
+        1|"")
+            _COMPILER="clang"
+            ;;
+        2)
+            _COMPILER="gcc"
+            ;;
+        *)
+            echo "Invalid choice. Defaulting to clang."
+            _COMPILER="clang"
+            ;;
+    esac
+
+    # Prompt for CPU optimization with yes as the default
+    read -p "Do you want to optimize the kernel for your specific CPU architecture? (yes/default or no): " _CPU_OPTIMIZE
+    _CPU_OPTIMIZE=${_CPU_OPTIMIZE:-yes}
+
+    if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
+        if [ -z "$_CPU_MARCH" ]; then
+            if [[ "$_COMPILER" == "clang" ]]; then
+                _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
+                CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
+            elif [[ "$_COMPILER" == "gcc" ]]; then
+                _CPU_MARCH=$(gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
+                CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH"
+            else
+                echo "Unsupported compiler."
+                exit 1
+            fi
+        fi
+    else
+        _CPU_MARCH="x86-64-v1"
+    fi
+
+    # Prompt for optimization level with O3 as the default
+    echo "Choose your optimization level:"
+    echo "1. O1"
+    echo "2. O2"
+    echo "3. O3 (default)"
+    echo "4. Ofast"
+    echo "5. Osize"
+    read -p "Enter choice (1-5): " _OPT_LEVEL_CHOICE
+    case $_OPT_LEVEL_CHOICE in
+        1)
+            _OPT_LEVEL="O1"
+            ;;
+        2)
+            _OPT_LEVEL="O2"
+            ;;
+        3|"")
+            _OPT_LEVEL="O3"
+            ;;
+        4)
+            _OPT_LEVEL="Ofast"
+            ;;
+        5)
+            _OPT_LEVEL="Osize"
+            ;;
+        *)
+            echo "Invalid choice. Defaulting to O3."
+            _OPT_LEVEL="O3"
+            ;;
+    esac
+
+    # Prompt for configuration tool with skip as the default
+    echo "Choose your configuration tool:"
+    echo "1. menuconfig"
+    echo "2. nconfig"
+    echo "3. skip (default)"
+    read -p "Enter choice (1-3): " _CONFIG_TOOL_CHOICE
+    case $_CONFIG_TOOL_CHOICE in
+        1)
+            _CONFIG_TOOL="menuconfig"
+            ;;
+        2)
+            _CONFIG_TOOL="nconfig"
+            ;;
+        3|"")
+            _CONFIG_TOOL="skip"
+            ;;
+        *)
+            echo "Invalid choice. Defaulting to skip."
+            _CONFIG_TOOL="skip"
+            ;;
+    esac
+
+    # Prompt for the number of make jobs
+    echo "Choose the number of make jobs:"
+    echo "1. User-defined"
+    echo "2. Arch/Gentoo makepkg.conf/make.conf"
+    echo "3. nproc (number of available processors)"
+    read -p "Enter choice (1-3): " _MAKE_JOBS_CHOICE
+    case $_MAKE_JOBS_CHOICE in
+        1)
+            read -p "Enter the number of make jobs: " _MAKE_JOBS
+            ;;
+        2)
+            if [[ -f /etc/makepkg.conf ]]; then
+                _MAKE_JOBS=$(grep -E '^MAKEFLAGS=' /etc/makepkg.conf | sed 's/.*-j\([0-9]\+\).*/\1/')
+            elif [[ -f /etc/portage/make.conf ]]; then
+                _MAKE_JOBS=$(grep -E '^MAKEOPTS=' /etc/portage/make.conf | sed 's/.*-j\([0-9]\+\).*/\1/')
+            else
+                echo "Configuration file for make jobs not found. Defaulting to nproc."
+                _MAKE_JOBS=$(nproc)
+            fi
+            ;;
+        3|"")
+            _MAKE_JOBS=$(nproc)
+            ;;
+        *)
+            echo "Invalid choice. Defaulting to half CPU."
+            _MAKE_JOBS=$(( $(nproc) /2 ))
+            ;;
+    esac
+
+    _prepare_env_and_source
     _apply_patches
     _configure_kernel
     _compile_kernel
