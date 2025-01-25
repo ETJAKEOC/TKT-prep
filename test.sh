@@ -23,7 +23,26 @@ load_config() {
 # Function to prompt for user input if not specified in customization.cfg
 prompt_user() {
     if [ -z "$KERNEL_VERSION" ]; then
-        read -p "Enter the kernel version you want to compile (e.g., 5.10): " KERNEL_VERSION
+        echo "Available kernel versions to promote:"
+        echo "1. 6.1 (LTS)"
+        echo "2. 6.6 (Stable)"
+        echo "3. 6.12 (Latest)"
+        read -p "Enter the number for the kernel version you want to compile (1-3): " KERNEL_CHOICE
+        case $KERNEL_CHOICE in
+            1)
+                KERNEL_VERSION="6.1"
+                ;;
+            2)
+                KERNEL_VERSION="6.6"
+                ;;
+            3)
+                KERNEL_VERSION="6.12"
+                ;;
+            *)
+                echo "Invalid choice."
+                exit 1
+                ;;
+        esac
     fi
 
     if [ -z "$PATCHES_DIR" ]; then
