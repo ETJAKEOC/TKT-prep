@@ -82,19 +82,30 @@ _prompt_user() {
     fi
 
     if [ -z "$_COMPILER" ]; then
-        read -p "Enter the compiler to use (e.g., gcc, clang): " _COMPILER
+        echo "Choose your compiler:"
+        echo "1. Clang (default)"
+        echo "2. GCC"
+        read -p "Enter choice (1-2): " _COMPILER_CHOICE
+        case $_COMPILER_CHOICE in
+            1|*)
+                _COMPILER="clang"
+                ;;
+            2)
+                _COMPILER="gcc"
+                ;;
+        esac
     fi
 
     if [ -z "$_CPU_MARCH" ]; then
         echo "Do you want to optimize the kernel for your specific CPU architecture? (yes/no)"
         read -p "Enter choice: " _CPU_OPTIMIZE
         if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
-            if [[ "$_COMPILER" == "gcc" ]]; then
-                _CPU_MARCH=$(gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
-                _MAKE='make'
-            elif [[ "$_COMPILER" == "clang" ]]; then
+            if [[ "$_COMPILER" == "clang" ]]; then
                 _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
                 _MAKE='make LLVM=1 LLVM_IAS=1'
+            elif [[ "$_COMPILER" == "gcc" ]]; then
+                _CPU_MARCH=$(gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
+                _MAKE='make'
             else
                 echo "Unsupported compiler."
                 exit 1
@@ -106,6 +117,29 @@ _prompt_user() {
 
     if [ -z "$_OPT_LEVEL" ]; then
         read -p "Enter the optimization level (e.g., O2, O3): " _OPT_LEVEL
+    fi
+
+    if [ -z "$_CONFIG_TOOL" ]; then
+        echo "Choose your configuration tool:"
+        echo "1. menuconfig"
+        echo "2. nconfig"
+        echo "3. Skip configuration"
+        read -p "Enter choice (1-3): " _CONFIG_TOOL_CHOICE
+        case $_CONFIG_TOOL_CHOICE in
+            1)
+                _CONFIG_TOOL="menuconfig"
+                ;;
+            2)
+                _CONFIG_TOOL="nconfig"
+                ;;
+            3)
+                _CONFIG_TOOL="skip"
+                ;;
+            *)
+                echo "Invalid choice."
+                exit 1
+                ;;
+        esac
     fi
 }
 
@@ -171,7 +205,13 @@ _configure_kernel() {
             exit 1
             ;;
     esac
-    make menuconfig
+
+    if [ "$_CONFIG_TOOL" != "skip" ]; then
+        echo "Running $_CONFIG_TOOL..."
+        make $_CONFIG_TOOL
+    else
+        echo "Skipping configuration step."
+    fi
 }
 
 # Function to compile the kernel
@@ -197,6 +237,7 @@ _main() {
     echo "Compiler: $_COMPILER"
     echo "CPU March: $_CPU_MARCH"
     echo "Optimization Level: $_OPT_LEVEL"
+    echo "Configuration Tool: $_CONFIG_TOOL"
     echo "Distribution: $_DISTRO"
 
     # Add additional steps here (package, install)
