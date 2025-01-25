@@ -4,7 +4,7 @@
 detect_distro() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
-        DISTRO=$ID
+        _DISTRO=$ID
     else
         echo "Unsupported Linux distribution."
         exit 1
@@ -22,25 +22,25 @@ load_config() {
 
 # Function to prompt for user input if not specified in customization.cfg
 prompt_user() {
-    if [ -z "$KERNEL_VERSION" ]; then
+    if [ -z "$_KERNEL_VERSION" ]; then
         echo "Available kernel versions to promote:"
         echo "1. 6.1 (LTS)"
-        echo "2. 6.6 (Stable)"
-        echo "3. 6.12 (Latest)"
+        echo "2. 6.6 (LTS)"
+        echo "3. 6.12 (Stable)"
         echo "4. 6.13 (Latest Stable)"
-        read -p "Enter the number for the kernel version you want to compile (1-4): " KERNEL_CHOICE
-        case $KERNEL_CHOICE in
+        read -p "Enter the number for the kernel version you want to compile (1-4): " _KERNEL_CHOICE
+        case $_KERNEL_CHOICE in
             1)
-                KERNEL_VERSION="6.1"
+                _KERNEL_VERSION="6.1"
                 ;;
             2)
-                KERNEL_VERSION="6.6"
+                _KERNEL_VERSION="6.6"
                 ;;
             3)
-                KERNEL_VERSION="6.12"
+                _KERNEL_VERSION="6.12"
                 ;;
             4)
-                KERNEL_VERSION="6.13"
+                _KERNEL_VERSION="6.13"
                 ;;
             *)
                 echo "Invalid choice."
@@ -49,30 +49,30 @@ prompt_user() {
         esac
     fi
 
-    if [ -z "$PATCHES_DIR" ]; then
-        PATCHES_DIR="versions/$KERNEL_VERSION/patches"
+    if [ -z "$_PATCHES_DIR" ]; then
+        _PATCHES_DIR="patches/$KERNEL_VERSION"
     fi
 
-    if [ -z "$CONFIG_OPTION" ]; then
+    if [ -z "$_CONFIG_OPTION" ]; then
         echo "Choose your kernel configuration option:"
         echo "1. Provide your own config file"
         echo "2. Use running kernel config"
         echo "3. Use localmodconfig"
         echo "4. Use blank defconfig"
-        read -p "Enter choice (1-4): " CONFIG_CHOICE
-        case $CONFIG_CHOICE in
+        read -p "Enter choice (1-4): " _CONFIG_CHOICE
+        case $_CONFIG_CHOICE in
             1)
-                read -p "Enter the path to your config file: " CONFIG_FILE
-                CONFIG_OPTION="custom"
+                read -p "Enter the path to your config file: " _CONFIG_FILE
+                _CONFIG_OPTION="custom"
                 ;;
             2)
-                CONFIG_OPTION="running-kernel"
+                _CONFIG_OPTION="running-kernel"
                 ;;
             3)
-                CONFIG_OPTION="localmodconfig"
+                _CONFIG_OPTION="localmodconfig"
                 ;;
             4)
-                CONFIG_OPTION="blank"
+                _CONFIG_OPTION="blank"
                 ;;
             *)
                 echo "Invalid choice."
@@ -81,29 +81,31 @@ prompt_user() {
         esac
     fi
 
-    if [ -z "$COMPILER" ]; then
-        read -p "Enter the compiler to use (e.g., gcc, clang): " COMPILER
+    if [ -z "$_COMPILER" ]; then
+        read -p "Enter the compiler to use (e.g., gcc, clang): " _COMPILER
     fi
 
     if [ -z "$CPU_MARCH" ]; then
         echo "Do you want to optimize the kernel for your specific CPU architecture? (yes/no)"
-        read -p "Enter choice: " CPU_OPTIMIZE
+        read -p "Enter choice: " _CPU_OPTIMIZE
         if [[ "$CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
             if [[ "$COMPILER" == "gcc" ]]; then
-                CPU_MARCH=$(gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
+                _CPU_MARCH=$(gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
+		_MAKE='make'
             elif [[ "$COMPILER" == "clang" ]]; then
-                CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
+                _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
+		_MAKE='make LLVM=1 LLVM_IAS=1'
             else
                 echo "Unsupported compiler."
                 exit 1
             fi
         else
-            CPU_MARCH="x86-64-v1"
+            _CPU_MARCH="x86-64-v1"
         fi
     fi
 
     if [ -z "$OPT_LEVEL" ]; then
-        read -p "Enter the optimization level (e.g., O2, O3): " OPT_LEVEL
+        read -p "Enter the optimization level (e.g., O2, O3): " _OPT_LEVEL
     fi
 }
 
@@ -119,9 +121,9 @@ prepare_kernel_source() {
 
 # Function to apply patches
 apply_patches() {
-    if [ -d "$PATCHES_DIR" ]; then
+    if [ -d "$_PATCHES_DIR" ]; then
         echo "Applying patches from $PATCHES_DIR..."
-        for patch in $PATCHES_DIR/*.patch; do
+        for patch in $_PATCHES_DIR/${_KERNEL-VERSION}/*.patch; do
             patch -Np1 < $patch
         done
     else
@@ -131,11 +133,11 @@ apply_patches() {
 
 # Function to configure the kernel
 configure_kernel() {
-    case $CONFIG_OPTION in
+    case $_CONFIG_OPTION in
         "custom")
-            if [ -f "$CONFIG_FILE" ]; then
-                echo "Copying custom config from $CONFIG_FILE..."
-                cp $CONFIG_FILE .config
+            if [ -f "$_CONFIG_FILE" ]; then
+                echo "Copying custom config from $_CONFIG_FILE..."
+                cp $_CONFIG_FILE .config
             else
                 echo "Custom config file not found."
                 exit 1
@@ -155,10 +157,10 @@ configure_kernel() {
             make localmodconfig
             ;;
         "blank")
-            DEFAULT_DEFCONFIG="versions/$KERNEL_VERSION/defconfig"
-            if [ -f "$DEFAULT_DEFCONFIG" ]; then
-                echo "Using default defconfig from $DEFAULT_DEFCONFIG..."
-                cp $DEFAULT_DEFCONFIG .config
+            _DEFAULT_DEFCONFIG="configs/$_KERNEL_VERSION/config.x86_64"
+            if [ -f "$_DEFAULT_DEFCONFIG" ]; then
+                echo "Using default defconfig from $_DEFAULT_DEFCONFIG..."
+                cp $_DEFAULT_DEFCONFIG .config
             else
                 echo "Default defconfig not found."
                 exit 1
@@ -172,17 +174,11 @@ configure_kernel() {
     make menuconfig
 }
 
-# Function to modify compilation flags
-modify_flags() {
-    echo "Modifying compilation flags..."
-    sed -i "s/-O2/-${OPT_LEVEL}/" Makefile
-    export CFLAGS="-pipe"
-}
-
 # Function to compile the kernel
 compile_kernel() {
     echo "Compiling the kernel..."
-    time make -j$(nproc) CC=$COMPILER CFLAGS="$CFLAGS -march=$CPU_MARCH -mtune=$CPU_MARCH" bzImage modules headers
+    sed -i "s/-O2/-${_OPT_LEVEL}/" Makefile
+    time $_MAKE -j$(nproc) CC=$_COMPILER CFLAGS="$CFLAGS -pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH" bzImage modules headers
 }
 
 # Main script execution
@@ -193,20 +189,19 @@ main() {
     prepare_kernel_source
     apply_patches
     configure_kernel
-    modify_flags
     compile_kernel
 
-    echo "Kernel Version: $KERNEL_VERSION"
-    echo "Patches Directory: $PATCHES_DIR"
-    echo "Configuration Option: $CONFIG_OPTION"
-    echo "Compiler: $COMPILER"
-    echo "CPU March: $CPU_MARCH"
-    echo "Optimization Level: $OPT_LEVEL"
-    echo "Distribution: $DISTRO"
+    echo "Kernel Version: $_KERNEL_VERSION"
+    echo "Patches Directory: $_PATCHES_DIR"
+    echo "Configuration Option: $_CONFIG_OPTION"
+    echo "Compiler: $_COMPILER"
+    echo "CPU March: $_CPU_MARCH"
+    echo "Optimization Level: $_OPT_LEVEL"
+    echo "Distribution: $_DISTRO"
 
     # Add additional steps here (package, install)
 
-    echo "Script execution completed for distribution: $DISTRO"
+    echo "Script execution completed for distribution: $_DISTRO"
 }
 
 # Execute the main function
