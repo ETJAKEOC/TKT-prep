@@ -1,5 +1,5 @@
 #!/bin/bash
-_SCRIPT_DIR='pwd'
+_SCRIPT_DIR=$pwd
 
 # Function to detect the Linux distribution
 _detect_distro() {
@@ -122,8 +122,8 @@ _prompt_user() {
         fi
         if [ -f "patches/more-uarches.patch" ]; then
             echo "Applying more-uarches.patch..."
-	    cd ${_BUILD_DIR}
-            patch -Np1 < ${_SCRIPT_DIR}/more-uarches.patch
+	    cd $_BUILD_DIR
+            patch -Np1 < $_SCRIPT_DIR/more-uarches.patch
         else
             echo "more-uarches.patch not found."
             exit 1
