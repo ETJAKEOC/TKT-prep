@@ -118,10 +118,10 @@ _prompt_user() {
         if [ -z "$_CPU_MARCH" ]; then
             if [[ "$_COMPILER" == "clang" ]]; then
                 _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
-                _MAKE='make CFLAGS="$CFLAGS -pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto" LLVM=1 LLVM_IAS=1'
+                _CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
             elif [[ "$_COMPILER" == "gcc" ]]; then
                 _CPU_MARCH=$(gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
-                _MAKE='make CFLAGS="$CFLAGS -pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH"'
+                _CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH"
             else
                 echo "Unsupported compiler."
                 exit 1
@@ -294,7 +294,7 @@ _configure_kernel() {
 _compile_kernel() {
     echo "Compiling the kernel..."
     sed -i "s/-O2/-$_OPT_LEVEL/" Makefile
-    time $_MAKE -j$_MAKE_JOBS CC=$_COMPILER bzImage modules headers
+    time make -j$_MAKE_JOBS CC=$_COMPILER CFLAGS="$_CFLAGS $CFLAGS" bzImage modules headers
     if [ $? -ne 0 ]; then
         echo "Kernel compilation failed."
         exit 1
