@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Function to detect the Linux distribution
-detect_distro() {
+_detect_distro() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         _DISTRO=$ID
@@ -12,7 +12,7 @@ detect_distro() {
 }
 
 # Function to load configuration from customization.cfg
-load_config() {
+_load_config() {
     if [ -f "customization.cfg" ]; then
         . customization.cfg
     else
@@ -21,7 +21,7 @@ load_config() {
 }
 
 # Function to prompt for user input if not specified in customization.cfg
-prompt_user() {
+_prompt_user() {
     if [ -z "$_KERNEL_VERSION" ]; then
         echo "Available kernel versions to promote:"
         echo "1. 6.1 (LTS)"
@@ -50,7 +50,7 @@ prompt_user() {
     fi
 
     if [ -z "$_PATCHES_DIR" ]; then
-        _PATCHES_DIR="patches/$KERNEL_VERSION"
+        _PATCHES_DIR="patches/$_KERNEL_VERSION"
     fi
 
     if [ -z "$_CONFIG_OPTION" ]; then
@@ -85,16 +85,16 @@ prompt_user() {
         read -p "Enter the compiler to use (e.g., gcc, clang): " _COMPILER
     fi
 
-    if [ -z "$CPU_MARCH" ]; then
+    if [ -z "$_CPU_MARCH" ]; then
         echo "Do you want to optimize the kernel for your specific CPU architecture? (yes/no)"
         read -p "Enter choice: " _CPU_OPTIMIZE
-        if [[ "$CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
-            if [[ "$COMPILER" == "gcc" ]]; then
+        if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
+            if [[ "$_COMPILER" == "gcc" ]]; then
                 _CPU_MARCH=$(gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
-		_MAKE='make'
-            elif [[ "$COMPILER" == "clang" ]]; then
+                _MAKE='make'
+            elif [[ "$_COMPILER" == "clang" ]]; then
                 _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
-		_MAKE='make LLVM=1 LLVM_IAS=1'
+                _MAKE='make LLVM=1 LLVM_IAS=1'
             else
                 echo "Unsupported compiler."
                 exit 1
@@ -104,26 +104,26 @@ prompt_user() {
         fi
     fi
 
-    if [ -z "$OPT_LEVEL" ]; then
+    if [ -z "$_OPT_LEVEL" ]; then
         read -p "Enter the optimization level (e.g., O2, O3): " _OPT_LEVEL
     fi
 }
 
 # Function to download and extract kernel source
-prepare_kernel_source() {
-    KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v${KERNEL_VERSION:0:1}.x/linux-${KERNEL_VERSION}.tar.xz"
-    echo "Downloading kernel version ${KERNEL_VERSION} from ${KERNEL_URL}..."
-    wget $KERNEL_URL -O linux-${KERNEL_VERSION}.tar.xz
+_prepare_kernel_source() {
+    KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v${_KERNEL_VERSION:0:1}.x/linux-${_KERNEL_VERSION}.tar.xz"
+    echo "Downloading kernel version ${_KERNEL_VERSION} from ${KERNEL_URL}..."
+    wget $KERNEL_URL -O linux-${_KERNEL_VERSION}.tar.xz
     echo "Extracting kernel source..."
-    tar -xf linux-${KERNEL_VERSION}.tar.xz
-    cd linux-${KERNEL_VERSION}
+    tar -xf linux-${_KERNEL_VERSION}.tar.xz
+    cd linux-${_KERNEL_VERSION}
 }
 
 # Function to apply patches
-apply_patches() {
+_apply_patches() {
     if [ -d "$_PATCHES_DIR" ]; then
-        echo "Applying patches from $PATCHES_DIR..."
-        for patch in $_PATCHES_DIR/${_KERNEL-VERSION}/*.patch; do
+        echo "Applying patches from $_PATCHES_DIR..."
+        for patch in $_PATCHES_DIR/*.patch; do
             patch -Np1 < $patch
         done
     else
@@ -132,7 +132,7 @@ apply_patches() {
 }
 
 # Function to configure the kernel
-configure_kernel() {
+_configure_kernel() {
     case $_CONFIG_OPTION in
         "custom")
             if [ -f "$_CONFIG_FILE" ]; then
@@ -175,21 +175,21 @@ configure_kernel() {
 }
 
 # Function to compile the kernel
-compile_kernel() {
+_compile_kernel() {
     echo "Compiling the kernel..."
     sed -i "s/-O2/-${_OPT_LEVEL}/" Makefile
     time $_MAKE -j$(nproc) CC=$_COMPILER CFLAGS="$CFLAGS -pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH" bzImage modules headers
 }
 
 # Main script execution
-main() {
-    detect_distro
-    load_config
-    prompt_user
-    prepare_kernel_source
-    apply_patches
-    configure_kernel
-    compile_kernel
+_main() {
+    _detect_distro
+    _load_config
+    _prompt_user
+    _prepare_kernel_source
+    _apply_patches
+    _configure_kernel
+    _compile_kernel
 
     echo "Kernel Version: $_KERNEL_VERSION"
     echo "Patches Directory: $_PATCHES_DIR"
@@ -205,4 +205,4 @@ main() {
 }
 
 # Execute the main function
-main
+_main
