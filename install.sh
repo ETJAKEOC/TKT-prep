@@ -1,5 +1,7 @@
 #!/bin/bash
-_SCRIPT_DIR=$pwd
+
+# Determine the directory where the script is running from
+_SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 
 # Function to detect the Linux distribution
 _detect_distro() {
@@ -14,8 +16,8 @@ _detect_distro() {
 
 # Function to load configuration from customization.cfg
 _load_config() {
-    if [ -f "customization.cfg" ]; then
-        . customization.cfg
+    if [ -f "$_SCRIPT_DIR/customization.cfg" ]; then
+        . "$_SCRIPT_DIR/customization.cfg"
     else
         echo "Configuration file not found."
     fi
@@ -56,7 +58,7 @@ _prompt_user() {
     fi
 
     if [ -z "$_PATCHES_DIR" ]; then
-        _PATCHES_DIR="patches/$_KERNEL_VERSION"
+        _PATCHES_DIR="$_SCRIPT_DIR/patches/$_KERNEL_VERSION"
     fi
 
     if [ -z "$_CONFIG_OPTION" ]; then
@@ -108,6 +110,14 @@ _prompt_user() {
     fi
 
     if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
+        if [ -f "$_SCRIPT_DIR/patches/more-uarches.patch" ]; then
+            echo "Applying more-uarches.patch..."
+            cd $_BUILD_DIR
+            patch -Np1 < "$_SCRIPT_DIR/patches/more-uarches.patch"
+        else
+            echo "more-uarches.patch not found."
+            exit 1
+        fi
         if [ -z "$_CPU_MARCH" ]; then
             if [[ "$_COMPILER" == "clang" ]]; then
                 _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
@@ -119,14 +129,6 @@ _prompt_user() {
                 echo "Unsupported compiler."
                 exit 1
             fi
-        fi
-        if [ -f "patches/more-uarches.patch" ]; then
-            echo "Applying more-uarches.patch..."
-	    cd $_BUILD_DIR
-            patch -Np1 < $_SCRIPT_DIR/patches/more-uarches.patch
-        else
-            echo "more-uarches.patch not found."
-            exit 1
         fi
     else
         _CPU_MARCH="x86-64-v1"
