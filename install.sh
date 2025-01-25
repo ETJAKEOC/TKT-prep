@@ -110,14 +110,6 @@ _prompt_user() {
     fi
 
     if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
-        if [ -f "$_SCRIPT_DIR/patches/more-uarches.patch" ]; then
-            echo "Applying more-uarches.patch..."
-            cd $_BUILD_DIR
-            patch -Np1 < "$_SCRIPT_DIR/patches/more-uarches.patch"
-        else
-            echo "more-uarches.patch not found."
-            exit 1
-        fi
         if [ -z "$_CPU_MARCH" ]; then
             if [[ "$_COMPILER" == "clang" ]]; then
                 _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
@@ -201,12 +193,21 @@ _prepare_kernel_source() {
 _apply_patches() {
     if [ -d "$_PATCHES_DIR" ]; then
         echo "Applying patches from $_PATCHES_DIR..."
-        for patch in $_PATCHES_DIR/0*.patch; do
+        for patch in $_PATCHES_DIR/*.patch; do
             patch -Np1 < $patch
         done
     else
         echo "No patches directory found."
     fi
+    if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
+        if [ -f "$_SCRIPT_DIR/patches/more-uarches.patch" ]; then
+            echo "Applying more-uarches.patch..."
+            patch -Np1 < "$_SCRIPT_DIR/patches/more-uarches.patch"
+        else
+            echo "more-uarches.patch not found."
+            exit 1
+        fi
+   fi
 }
 
 # Function to configure the kernel
