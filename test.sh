@@ -49,6 +49,11 @@ _prompt_user() {
         esac
     fi
 
+    if [ -z "$_BUILD_DIR" ]; then
+        read -p "Enter the directory to store the kernel source (default: linux-src): " _BUILD_DIR
+        _BUILD_DIR=${_BUILD_DIR:-linux-src}
+    fi
+
     if [ -z "$_PATCHES_DIR" ]; then
         _PATCHES_DIR="patches/$_KERNEL_VERSION"
     fi
@@ -148,9 +153,13 @@ _prepare_kernel_source() {
     KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v${_KERNEL_VERSION:0:1}.x/linux-${_KERNEL_VERSION}.tar.xz"
     echo "Downloading kernel version ${_KERNEL_VERSION} from ${KERNEL_URL}..."
     wget $KERNEL_URL -O linux-${_KERNEL_VERSION}.tar.xz
-    echo "Extracting kernel source..."
-    tar -xf linux-${_KERNEL_VERSION}.tar.xz
-    cd linux-${_KERNEL_VERSION}
+
+    echo "Creating build directory $_BUILD_DIR..."
+    mkdir -p $_BUILD_DIR
+
+    echo "Extracting kernel source to $_BUILD_DIR..."
+    tar -xf linux-${_KERNEL_VERSION}.tar.xz -C $_BUILD_DIR --strip-components=1
+    cd $_BUILD_DIR
 }
 
 # Function to apply patches
@@ -238,6 +247,7 @@ _main() {
     echo "CPU March: $_CPU_MARCH"
     echo "Optimization Level: $_OPT_LEVEL"
     echo "Configuration Tool: $_CONFIG_TOOL"
+    echo "Build Directory: $_BUILD_DIR"
     echo "Distribution: $_DISTRO"
 
     # Add additional steps here (package, install)
