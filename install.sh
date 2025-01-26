@@ -34,6 +34,13 @@ _prepare_env_and_source() {
     cd $_BUILD_DIR
 }
 
+# Function to set the user optimization level in the optimization patch.
+_optimization() {
+    read -p "Optimization value: " oflag
+    sed -i "s/-O3/-O${oflag}/g" $_SCRIPT_DIR/patches/optimize_harder.patch
+    echo "CFLAGS='-O$oflag'"
+}
+
 # Function to apply patches
 _apply_patches() {
     if [ ! -d "$_PATCHES_DIR" ]; then
@@ -55,6 +62,15 @@ _apply_patches() {
         patch -Np1 < "$_SCRIPT_DIR/patches/more-uarches.patch"
         if [ $? -ne 0 ]; then
             echo "Failed to apply more-uarches.patch"
+            exit 1
+        fi
+    fi
+
+    if [[ "$_OPT_LEVEL" =~ ^(yes|y)$ ]] && [ -f "$_SCRIPT_DIR/patches/optimize_harder.patch" ]; then
+        echo "Applying User specified optimization level..."
+        patch -Np1 < "$_SCRIPT_DIR/patches/optimize-harder.patch"
+        if [ $? -ne 0 ]; then
+            echo "Failed to apply user specified optimization level."
             exit 1
         fi
     fi
@@ -88,8 +104,6 @@ _configure_kernel() {
 # Function to compile the kernel
 _compile_kernel() {
     echo "Compiling the kernel..."
-    sed -i "s/-O2/-$_OPT_LEVEL/" Makefile
-    sed -i "s/-O2/-$_OPT_LEVEL/" Kconfig
     time make -j$_MAKE_JOBS CC=$_COMPILER CFLAGS="$CFLAGS" bzImage modules headers
     [ $? -ne 0 ] && { echo "Kernel compilation failed."; exit 1; }
 }
@@ -280,6 +294,7 @@ _main() {
     esac
 
     _prepare_env_and_source
+    _optimization
     _apply_patches
     _configure_kernel
     _compile_kernel
