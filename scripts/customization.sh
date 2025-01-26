@@ -115,10 +115,10 @@ customize_installation() {
         # Always use gcc to detect the CPU architecture
         _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}' | head -n 1)
         if [[ "$_COMPILER" == "clang" ]]; then
-	    _LLVM_ENV=""
+	    _LLVM_ENV="CC=clang CPP=clang-cpp CXX=clang++ LD=ld.lld CC_LD=ld.lld CXX_LD=ld.lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=ld.lld"
             _CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
         elif [[ "$_COMPILER" == "gcc" ]]; then
-	    _GCC_ENV=""
+	    _GCC_ENV="CC=/bin/gcc CPP=/bin/cpp CXX=/bin/c++ LD=/bin/ld CC_LD=/bin/ld CXX_LD=/bin/ld AR=/bin/ar NM=/bin/nm STRIP=/bin/strip OBJCOPY=/bin/objcopy OBJDUMP=/bin/objdump READELF=/bin/readelf RANLIB=/bin/ranlib HOSTCC=/bin/gcc HOSTCXX=/bin/c++ HOSTAR=/bin/ar HOSTLD=/bin/ld"
             _CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH"
         else
             echo "Unsupported compiler."
