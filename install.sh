@@ -89,6 +89,7 @@ _configure_kernel() {
 _compile_kernel() {
     echo "Compiling the kernel..."
     sed -i "s/-O2/-$_OPT_LEVEL/" Makefile
+    sed -i "s/-O2/-$_OPT_LEVEL/" Kconfig
     time make -j$_MAKE_JOBS CC=$_COMPILER CFLAGS="$CFLAGS" bzImage modules headers
     [ $? -ne 0 ] && { echo "Kernel compilation failed."; exit 1; }
 }
@@ -131,10 +132,10 @@ _main() {
     # Set patches directory
     _PATCHES_DIR="$_SCRIPT_DIR/patches/$_KERNEL_VERSION"
 
-    # Prompt for configuration option
+    # Prompt for configuration option with running-kernel as the default
     echo "Choose your kernel configuration option:"
     echo "1. Provide your own config file"
-    echo "2. Use running kernel config"
+    echo "2. Use running kernel config (default)"
     echo "3. Use localmodconfig"
     echo "4. Use blank defconfig"
     read -p "Enter choice (1-4): " _CONFIG_CHOICE
@@ -143,18 +144,18 @@ _main() {
             read -p "Enter the path to your config file: " _CONFIG_FILE
             _CONFIG_OPTION="custom"
             ;;
-        2)
+        2|"")
             _CONFIG_OPTION="running-kernel"
             ;;
         3)
             _CONFIG_OPTION="localmodconfig"
             ;;
-        4|"")
+        4)
             _CONFIG_OPTION="blank"
             ;;
         *)
-            echo "Invalid choice. Defaulting to blank defconfig."
-            _CONFIG_OPTION="blank"
+            echo "Invalid choice. Defaulting to running kernel config."
+            _CONFIG_OPTION="running-kernel"
             ;;
     esac
 
@@ -273,8 +274,8 @@ _main() {
             _MAKE_JOBS=$(nproc)
             ;;
         *)
-            echo "Invalid choice. Defaulting to half CPU."
-            _MAKE_JOBS=$(( $(nproc) /2 ))
+            echo "Invalid choice. Defaulting to nproc."
+            _MAKE_JOBS=$(nproc)
             ;;
     esac
 
