@@ -1,7 +1,34 @@
 #!/bin/bash
 # customization.sh
 
+detect_distro_and_set_packaging() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        _DISTRO=$ID
+        case $_DISTRO in
+            arch)
+                _PACKAGING_FORMAT="arch"
+                ;;
+            debian | ubuntu)
+                _PACKAGING_FORMAT="deb"
+                ;;
+            fedora | centos | rhel)
+                _PACKAGING_FORMAT="rpm"
+                ;;
+            *)
+                _PACKAGING_FORMAT="none"
+                ;;
+        esac
+    else
+        echo "Could not detect the Linux distribution."
+        _PACKAGING_FORMAT="none"
+    fi
+}
+
 customize_installation() {
+    # Detect distribution and set packaging format
+    detect_distro_and_set_packaging
+
     # Prompt for kernel version with 6.13 as the default
     echo "Available kernel versions to promote:"
     echo "1. 6.1 (LTS)"

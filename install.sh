@@ -32,24 +32,19 @@ _main() {
     configure_kernel
     compile_kernel
 
-    # Prompt for packaging option
-    echo "Choose your packaging format:"
-    echo "1. Arch Linux (tar-pkg)"
-    echo "2. Debian/Ubuntu (deb-pkg)"
-    echo "3. RPM-based (rpm-pkg)"
-    read -p "Enter choice (1-3): " _PACKAGING_CHOICE
-    case $_PACKAGING_CHOICE in
-        1)
+    # Determine packaging format
+    case $_PACKAGING_FORMAT in
+        arch)
             package_arch
             ;;
-        2)
+        deb)
             package_deb
             ;;
-        3)
+        rpm)
             package_rpm
             ;;
-        *)
-            echo "Invalid choice. No package will be created."
+        none)
+            echo "No packaging format recognized. Kernel compiled but not packaged."
             ;;
     esac
 
