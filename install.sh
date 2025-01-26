@@ -37,11 +37,11 @@ _prepare_env_and_source() {
 # Function to set the user optimization level in the optimization patch.
 _optimization() {
     # Create a copy of the base patch for user-specific optimization
-    cp $_SCRIPT_DIR/patches/optimize-harder.patch $_SCRIPT_DIR/patches/optimize-user.patch
+    cp $_SCRIPT_DIR/patches/optimize-base.patch $_SCRIPT_DIR/patches/optimize-user.patch
     echo "Setting optimization level to $_OPT_LEVEL in the user-specific patch..."
     sed -i "s/-O3/-O${_OPT_LEVEL}/g" $_SCRIPT_DIR/patches/optimize-user.patch
     _MAKE_O="-O${_OPT_LEVEL}"
-    echo "CFLAGS=$_MAKE_O"
+    echo "_MAKE_O=$_MAKE_O"
 }
 
 # Function to apply patches
