@@ -36,8 +36,10 @@ _prepare_env_and_source() {
 
 # Function to set the user optimization level in the optimization patch.
 _optimization() {
-    sed -i "s/-O2/${_OPT_LEVEL}/g" $_SCRIPT_DIR/patches/optimize-harder.patch
-    _MAKE_O="${_OPT_LEVEL}"
+    echo "Setting optimization level to $_OPT_LEVEL in the patch..."
+    sed -i "s/-O2/-O${_OPT_LEVEL}/g" $_SCRIPT_DIR/patches/optimize-base.patch > $_SCRIPT_DIR/patches/optimize-user.patch
+    _MAKE_O="-O${_OPT_LEVEL}"
+    echo "CFLAGS=$_MAKE_O"
 }
 
 # Function to apply patches
@@ -65,9 +67,9 @@ _apply_patches() {
         fi
     fi
 
-    if [[ "$_OPT_LEVEL" != "-O2" ]] && [ -f "$_SCRIPT_DIR/patches/optimize-harder.patch" ]; then
+    if [[ "$_OPT_LEVEL" != "O2" ]] && [ -f "$_SCRIPT_DIR/patches/optimize-user.patch" ]; then
         echo "Applying user-specified optimization level..."
-        patch -Np1 < "$_SCRIPT_DIR/patches/optimize-harder.patch"
+        patch -Np1 < "$_SCRIPT_DIR/patches/optimize-user.patch"
         if [ $? -ne 0 ]; then
             echo "Failed to apply user-specified optimization level."
             exit 1
@@ -110,6 +112,7 @@ _compile_kernel() {
 # Main script execution
 _main() {
     # Load config
+    echo "Loading configuration..."
     [ -f "$_SCRIPT_DIR/customization.cfg" ] && . "$_SCRIPT_DIR/customization.cfg" || echo "Configuration file not found."
 
     # Prompt for kernel version with 6.13 as the default
@@ -213,31 +216,31 @@ _main() {
 
     # Prompt for optimization level with O3 as the default
     echo "Choose your optimization level:"
-    echo "1. -O1"
-    echo "2. -O2"
-    echo "3. -O3 (default)"
-    echo "4. -Ofast"
-    echo "5. -Osize"
+    echo "1. O1"
+    echo "2. O2"
+    echo "3. O3 (default)"
+    echo "4. Ofast"
+    echo "5. Osize"
     read -p "Enter choice (1-5): " _OPT_LEVEL_CHOICE
     case $_OPT_LEVEL_CHOICE in
         1)
-            _OPT_LEVEL="-O1"
+            _OPT_LEVEL="1"
             ;;
         2)
-            _OPT_LEVEL="-O2"
+            _OPT_LEVEL="2"
             ;;
         3|"")
-            _OPT_LEVEL="-O3"
+            _OPT_LEVEL="3"
             ;;
         4)
-            _OPT_LEVEL="-Ofast"
+            _OPT_LEVEL="fast"
             ;;
         5)
-            _OPT_LEVEL="-Osize"
+            _OPT_LEVEL="size"
             ;;
         *)
             echo "Invalid choice. Defaulting to O3."
-            _OPT_LEVEL="-O3"
+            _OPT_LEVEL="3"
             ;;
     esac
 
