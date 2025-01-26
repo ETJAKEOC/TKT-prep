@@ -8,6 +8,6 @@ compile_kernel() {
         elif [[ "$_COMPILER" == "gcc" ]]; then
 	    time make -j$_MAKE_JOBS $_GCC_ENV CFLAGS="$CFLAGS $_CFLAGS $_MAKE_O" bzImage modules headers
 	else
-	    [ $? -ne 0 ] && { echo "Kernel compilation failed."; exit 1; }
+	    [ $? -ne 0 ] && { echo "Kernel compilation failed."; }
     fi
 }
