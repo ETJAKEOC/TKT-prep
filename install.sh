@@ -37,8 +37,7 @@ _prepare_env_and_source() {
 # Function to set the user optimization level in the optimization patch.
 _optimization() {
     sed -i "s/-O2/${_OPT_LEVEL}/g" $_SCRIPT_DIR/patches/optimize-harder.patch
-    CFLAGS="${_OPT_LEVEL}"
-    echo "CFLAGS='${CFLAGS}'"
+    _MAKE_O="${_OPT_LEVEL}"
 }
 
 # Function to apply patches
@@ -104,7 +103,7 @@ _configure_kernel() {
 # Function to compile the kernel
 _compile_kernel() {
     echo "Compiling the kernel..."
-    time make -j$_MAKE_JOBS CC=$_COMPILER CFLAGS="$CFLAGS" bzImage modules headers
+    time make -j$_MAKE_JOBS CC=$_COMPILER CFLAGS="$CFLAGS $_CFLAGS $_MAKE_O" bzImage modules headers
     [ $? -ne 0 ] && { echo "Kernel compilation failed."; exit 1; }
 }
 
