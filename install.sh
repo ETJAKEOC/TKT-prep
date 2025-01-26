@@ -1,213 +1,15 @@
 #!/bin/bash
+# install.sh
 
 # Determine the directory where the script is running from
 _SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 
-# Function to detect the Linux distribution and prepare kernel source
-_prepare_env_and_source() {
-    if [ -f /etc/os-release ]; then
-        . /etc/os-release
-        _DISTRO=$ID
-    else
-        echo "Unsupported Linux distribution."
-        exit 1
-    fi
-
-    KERNEL_URL="https://cdn.kernel.org/pub/linux/kernel/v${_KERNEL_VERSION:0:1}.x/linux-${_KERNEL_VERSION}.tar.xz"
-    TAR_FILE="linux-${_KERNEL_VERSION}.tar.xz"
-
-    if [ -f "$TAR_FILE" ]; then
-        echo "Kernel tarball already downloaded. Not redownloading."
-    else
-        echo "Downloading kernel version ${_KERNEL_VERSION} from ${KERNEL_URL}..."
-        wget $KERNEL_URL -O $TAR_FILE
-    fi
-
-    if [ -d "$_BUILD_DIR" ]; then
-        echo "Build directory $_BUILD_DIR already exists. Cleaning..."
-        rm -rf $_BUILD_DIR
-    fi
-
-    echo "Extracting kernel source to $_BUILD_DIR..."
-    mkdir -p $_BUILD_DIR
-    tar -xf $TAR_FILE -C $_BUILD_DIR --strip-components=1
-    cd $_BUILD_DIR
-}
-
-# Function to set the user optimization level in the optimization patch.
-_optimization() {
-    # Create a copy of the base patch for user-specific optimization
-    cp $_SCRIPT_DIR/patches/optimize-base.patch $_SCRIPT_DIR/patches/optimize-user.patch
-    echo "Setting optimization level to $_OPT_LEVEL in the user-specific patch..."
-    sed -i "s/-O3/-O${_OPT_LEVEL}/g" $_SCRIPT_DIR/patches/optimize-user.patch
-    _MAKE_O="-O${_OPT_LEVEL}"
-    echo "_MAKE_O=$_MAKE_O"
-}
-
-# Function to apply patches
-_apply_patches() {
-    if [ ! -d "$_PATCHES_DIR" ]; then
-        echo "Patches directory $_PATCHES_DIR not found. Please ensure you have a copy of the repository."
-        exit 1
-    fi
-
-    echo "Applying patches from $_PATCHES_DIR..."
-    for patch in $_PATCHES_DIR/*.patch; do
-        patch -Np1 < $patch
-        if [ $? -ne 0 ]; then
-            echo "Failed to apply patch $patch"
-            exit 1
-        fi
-    done
-
-    if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]] && [ -f "$_SCRIPT_DIR/patches/more-uarches.patch" ]; then
-        echo "Applying more-uarches.patch..."
-        patch -Np1 < "$_SCRIPT_DIR/patches/more-uarches.patch"
-        if [ $? -ne 0 ]; then
-            echo "Failed to apply more-uarches.patch"
-            exit 1
-        fi
-    fi
-
-    if [[ "$_OPT_LEVEL" != "O2" ]] && [ -f "$_SCRIPT_DIR/patches/optimize-user.patch" ]; then
-        echo "Applying user-specified optimization level..."
-        patch -Np1 < "$_SCRIPT_DIR/patches/optimize-user.patch"
-        if [ $? -ne 0 ]; then
-            echo "Failed to apply user-specified optimization level."
-            exit 1
-        fi
-    fi
-}
-
-# Function to configure the kernel
-_configure_kernel() {
-    case $_CONFIG_OPTION in
-        "custom")
-            [ -f "$_CONFIG_FILE" ] && cp $_CONFIG_FILE .config || { echo "Custom config file not found."; exit 1; }
-            ;;
-        "running-kernel")
-            [ -f /proc/config.gz ] && zcat /proc/config.gz > .config || { echo "/proc/config.gz not found."; exit 1; }
-            ;;
-        "localmodconfig")
-            make localmodconfig
-            ;;
-        "blank")
-            _DEFAULT_DEFCONFIG="configs/$_KERNEL_VERSION/config.x86_64"
-            [ -f "$_DEFAULT_DEFCONFIG" ] && cp $_DEFAULT_DEFCONFIG .config || { echo "Default defconfig not found."; exit 1; }
-            ;;
-        *)
-            echo "Invalid configuration option."
-            exit 1
-            ;;
-    esac
-
-    # Set the CPU architecture in the kernel configuration
-    if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
-        case $_CPU_MARCH in
-            "znver1")
-                CONFIG_CPU="CONFIG_MZEN"
-                ;;
-            "znver2")
-                CONFIG_CPU="CONFIG_MZEN2"
-                ;;
-            "znver3")
-                CONFIG_CPU="CONFIG_MZEN3"
-                ;;
-            "znver4")
-                CONFIG_CPU="CONFIG_MZEN4"
-                ;;
-            "znver5")
-                CONFIG_CPU="CONFIG_MZEN5"
-                ;;
-            "nehalem")
-                CONFIG_CPU="CONFIG_MNEHALEM"
-                ;;
-            "westmere")
-                CONFIG_CPU="CONFIG_MWESTMERE"
-                ;;
-            "silvermont")
-                CONFIG_CPU="CONFIG_MSILVERMONT"
-                ;;
-            "goldmont")
-                CONFIG_CPU="CONFIG_MGOLDMONT"
-                ;;
-            "goldmont-plus")
-                CONFIG_CPU="CONFIG_MGOLDMONTPLUS"
-                ;;
-            "sandybridge")
-                CONFIG_CPU="CONFIG_MSANDYBRIDGE"
-                ;;
-            "ivybridge")
-                CONFIG_CPU="CONFIG_MIVYBRIDGE"
-                ;;
-            "haswell")
-                CONFIG_CPU="CONFIG_MHASWELL"
-                ;;
-            "broadwell")
-                CONFIG_CPU="CONFIG_MBROADWELL"
-                ;;
-            "skylake")
-                CONFIG_CPU="CONFIG_MSKYLAKE"
-                ;;
-            "skylake-avx512")
-                CONFIG_CPU="CONFIG_MSKYLAKEX"
-                ;;
-            "cannonlake")
-                CONFIG_CPU="CONFIG_MCANNONLAKE"
-                ;;
-            "icelake-client")
-                CONFIG_CPU="CONFIG_MICELAKE"
-                ;;
-            "cascadelake")
-                CONFIG_CPU="CONFIG_MCASCADELAKE"
-                ;;
-            "cooperlake")
-                CONFIG_CPU="CONFIG_MCOOPERLAKE"
-                ;;
-            "tigerlake")
-                CONFIG_CPU="CONFIG_MTIGERLAKE"
-                ;;
-            "sapphirerapids")
-                CONFIG_CPU="CONFIG_MSAPPHIRERAPIDS"
-                ;;
-            "rocketlake")
-                CONFIG_CPU="CONFIG_MROCKETLAKE"
-                ;;
-            "alderlake")
-                CONFIG_CPU="CONFIG_MALDERLAKE"
-                ;;
-            "raptorlake")
-                CONFIG_CPU="CONFIG_MRAPTORLAKE"
-                ;;
-            "meteorlake")
-                CONFIG_CPU="CONFIG_MMETEORLAKE"
-                ;;
-            "emeraldrapids")
-                CONFIG_CPU="CONFIG_MEMERALDRAPIDS"
-                ;;
-            *)
-                CONFIG_CPU=""
-                ;;
-        esac
-
-        if [ -n "$CONFIG_CPU" ]; then
-            echo "Setting kernel CPU architecture to $_CPU_MARCH ($CONFIG_CPU)"
-            sed -i "s/^CONFIG_GENERIC_CPU=.*/# CONFIG_GENERIC_CPU is not set/" .config
-            echo "$CONFIG_CPU=y" >> .config
-        else
-            echo "CPU architecture $_CPU_MARCH not recognized, defaulting to generic-x86-64"
-        fi
-    fi
-
-    [ "$_CONFIG_TOOL" != "skip" ] && make $_CONFIG_TOOL && echo "Kernel configuration completed." || echo "Skipping configuration step."
-}
-
-# Function to compile the kernel
-_compile_kernel() {
-    echo "Compiling the kernel..."
-    time make -j$_MAKE_JOBS CC=$_COMPILER CFLAGS="$CFLAGS $_CFLAGS $_MAKE_O" bzImage modules headers
-    [ $? -ne 0 ] && { echo "Kernel compilation failed."; exit 1; }
-}
+# Source individual scripts
+source $_SCRIPT_DIR/scripts/prepare.sh
+source $_SCRIPT_DIR/scripts/optimization.sh
+source $_SCRIPT_DIR/scripts/patches.sh
+source $_SCRIPT_DIR/scripts/configure.sh
+source $_SCRIPT_DIR/scripts/compile.sh
 
 # Main script execution
 _main() {
@@ -298,7 +100,7 @@ _main() {
     _CPU_OPTIMIZE=${_CPU_OPTIMIZE:-yes}
 
     if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
-        # Always use gcc to detect the CPU architecture since clang is broken in this aspect.
+        # Always use gcc to detect the CPU architecture
         _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}' | head -n 1)
         if [[ "$_COMPILER" == "clang" ]]; then
             CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
@@ -394,11 +196,11 @@ _main() {
             ;;
     esac
 
-    _prepare_env_and_source
-    _optimization
-    _apply_patches
-    _configure_kernel
-    _compile_kernel
+    prepare_env_and_source
+    set_optimization_level
+    apply_patches
+    configure_kernel
+    compile_kernel
 
     echo "Kernel Version: $_KERNEL_VERSION"
     echo "Patches Directory: $_PATCHES_DIR"
