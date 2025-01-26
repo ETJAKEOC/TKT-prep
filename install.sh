@@ -192,7 +192,8 @@ _configure_kernel() {
 
         if [ -n "$CONFIG_CPU" ]; then
             echo "Setting kernel CPU architecture to $_CPU_MARCH ($CONFIG_CPU)"
-            sed -i "s/# $CONFIG_CPU is not set/$CONFIG_CPU=y/g" .config
+            sed -i "s/^CONFIG_GENERIC_CPU=.*/# CONFIG_GENERIC_CPU is not set/" .config
+            echo "$CONFIG_CPU=y" >> .config
         else
             echo "CPU architecture $_CPU_MARCH not recognized, defaulting to generic-x86-64"
         fi
@@ -297,19 +298,15 @@ _main() {
     _CPU_OPTIMIZE=${_CPU_OPTIMIZE:-yes}
 
     if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
-        if [ -z "$_CPU_MARCH" ]; then
-            if [[ "$_COMPILER" == "clang" ]]; then
-#	For some reason, clang does not properly report CPU march all the time, so we use GCC as a hack for now.
-#                _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
-                _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
-                CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
-            elif [[ "$_COMPILER" == "gcc" ]]; then
-                _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
-                CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH"
-            else
-                echo "Unsupported compiler."
-                exit 1
-            fi
+        # Always use gcc to detect the CPU architecture
+        _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
+        if [[ "$_COMPILER" == "clang" ]]; then
+            CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
+        elif [[ "$_COMPILER" == "gcc" ]]; then
+            CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH"
+        else
+            echo "Unsupported compiler."
+            exit 1
         fi
         echo "Detected CPU architecture: $_CPU_MARCH"
     else
