@@ -301,10 +301,10 @@ _main() {
             if [[ "$_COMPILER" == "clang" ]]; then
 #	For some reason, clang does not properly report CPU march all the time, so we use GCC as a hack for now.
 #                _CPU_MARCH=$(clang -march=native -### 2>&1 | grep -- '-target-cpu' | awk '{print $2}')
-                _CPU_MARCH=$(gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
+                _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
                 CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
             elif [[ "$_COMPILER" == "gcc" ]]; then
-                _CPU_MARCH=$(gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
+                _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
                 CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH"
             else
                 echo "Unsupported compiler."
