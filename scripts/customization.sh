@@ -115,9 +115,11 @@ customize_installation() {
         # Always use gcc to detect the CPU architecture
         _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}' | head -n 1)
         if [[ "$_COMPILER" == "clang" ]]; then
-            CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
+	    _LLVM_ENV=""
+            _CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
         elif [[ "$_COMPILER" == "gcc" ]]; then
-            CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH"
+	    _GCC_ENV=""
+            _CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH"
         else
             echo "Unsupported compiler."
             exit 1
