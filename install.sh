@@ -37,7 +37,7 @@ _prepare_env_and_source() {
 # Function to set the user optimization level in the optimization patch.
 _optimization() {
     sed -i "s/-O2/-${_OPT_LEVEL}/g" $_SCRIPT_DIR/patches/optimize_harder.patch
-    CFLAGS="-O${_OPT_LEVEL}"
+    CFLAGS="${_OPT_LEVEL}"
     echo "CFLAGS='${CFLAGS}'"
 }
 
