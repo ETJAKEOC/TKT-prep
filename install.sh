@@ -298,8 +298,8 @@ _main() {
     _CPU_OPTIMIZE=${_CPU_OPTIMIZE:-yes}
 
     if [[ "$_CPU_OPTIMIZE" =~ ^(yes|y)$ ]]; then
-        # Always use gcc to detect the CPU architecture, since clang is broken in this aspect.
-        _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}')
+        # Always use gcc to detect the CPU architecture since clang is broken in this aspect.
+        _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}' | head -n 1)
         if [[ "$_COMPILER" == "clang" ]]; then
             CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
         elif [[ "$_COMPILER" == "gcc" ]]; then
@@ -319,7 +319,8 @@ _main() {
     echo "2. O2"
     echo "3. O3 (default)"
     echo "4. Ofast"
-    read -p "Enter choice (1-4): " _OPT_LEVEL_CHOICE
+    echo "5. Osize"
+    read -p "Enter choice (1-5): " _OPT_LEVEL_CHOICE
     case $_OPT_LEVEL_CHOICE in
         1)
             _OPT_LEVEL="1"
@@ -332,6 +333,9 @@ _main() {
             ;;
         4)
             _OPT_LEVEL="fast"
+            ;;
+        5)
+            _OPT_LEVEL="size"
             ;;
         *)
             echo "Invalid choice. Defaulting to O3."
