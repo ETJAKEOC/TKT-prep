@@ -36,9 +36,9 @@ _prepare_env_and_source() {
 
 # Function to set the user optimization level in the optimization patch.
 _optimization() {
-    read -p "Optimization value: " oflag
-    sed -i "s/-O3/-O${oflag}/g" $_SCRIPT_DIR/patches/optimize_harder.patch
-    echo "CFLAGS='-O$oflag'"
+    sed -i "s/-O2/-${_OPT_LEVEL}/g" $_SCRIPT_DIR/patches/optimize_harder.patch
+    CFLAGS="-O${_OPT_LEVEL}"
+    echo "CFLAGS='${CFLAGS}'"
 }
 
 # Function to apply patches
@@ -66,11 +66,11 @@ _apply_patches() {
         fi
     fi
 
-    if [[ "$_OPT_LEVEL" != 2 ]] && [ -f "$_SCRIPT_DIR/patches/optimize_harder.patch" ]; then
-        echo "Applying User specified optimization level..."
-        patch -Np1 < "$_SCRIPT_DIR/patches/optimize-harder.patch"
+    if [[ "$_OPT_LEVEL" != "O2" ]] && [ -f "$_SCRIPT_DIR/patches/optimize_harder.patch" ]; then
+        echo "Applying user-specified optimization level..."
+        patch -Np1 < "$_SCRIPT_DIR/patches/optimize_harder.patch"
         if [ $? -ne 0 ]; then
-            echo "Failed to apply user specified optimization level."
+            echo "Failed to apply user-specified optimization level."
             exit 1
         fi
     fi
