@@ -66,7 +66,7 @@ _apply_patches() {
         fi
     fi
 
-    if [[ "$_OPT_LEVEL" !=2 ]] && [ -f "$_SCRIPT_DIR/patches/optimize_harder.patch" ]; then
+    if [[ "$_OPT_LEVEL" != 2 ]] && [ -f "$_SCRIPT_DIR/patches/optimize_harder.patch" ]; then
         echo "Applying User specified optimization level..."
         patch -Np1 < "$_SCRIPT_DIR/patches/optimize-harder.patch"
         if [ $? -ne 0 ]; then
