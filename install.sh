@@ -36,7 +36,7 @@ _prepare_env_and_source() {
 
 # Function to set the user optimization level in the optimization patch.
 _optimization() {
-    sed -i "s/-O2/-${_OPT_LEVEL}/g" $_SCRIPT_DIR/patches/optimize_harder.patch
+    sed -i "s/-O2/${_OPT_LEVEL}/g" $_SCRIPT_DIR/patches/optimize-harder.patch
     CFLAGS="${_OPT_LEVEL}"
     echo "CFLAGS='${CFLAGS}'"
 }
@@ -66,7 +66,7 @@ _apply_patches() {
         fi
     fi
 
-    if [[ "$_OPT_LEVEL" != "O2" ]] && [ -f "$_SCRIPT_DIR/patches/optimize-harder.patch" ]; then
+    if [[ "$_OPT_LEVEL" != "-O2" ]] && [ -f "$_SCRIPT_DIR/patches/optimize-harder.patch" ]; then
         echo "Applying user-specified optimization level..."
         patch -Np1 < "$_SCRIPT_DIR/patches/optimize-harder.patch"
         if [ $? -ne 0 ]; then
@@ -214,31 +214,31 @@ _main() {
 
     # Prompt for optimization level with O3 as the default
     echo "Choose your optimization level:"
-    echo "1. O1"
-    echo "2. O2"
-    echo "3. O3 (default)"
-    echo "4. Ofast"
-    echo "5. Osize"
+    echo "1. -O1"
+    echo "2. -O2"
+    echo "3. -O3 (default)"
+    echo "4. -Ofast"
+    echo "5. -Osize"
     read -p "Enter choice (1-5): " _OPT_LEVEL_CHOICE
     case $_OPT_LEVEL_CHOICE in
         1)
-            _OPT_LEVEL="O1"
+            _OPT_LEVEL="-O1"
             ;;
         2)
-            _OPT_LEVEL="O2"
+            _OPT_LEVEL="-O2"
             ;;
         3|"")
-            _OPT_LEVEL="O3"
+            _OPT_LEVEL="-O3"
             ;;
         4)
-            _OPT_LEVEL="Ofast"
+            _OPT_LEVEL="-Ofast"
             ;;
         5)
-            _OPT_LEVEL="Osize"
+            _OPT_LEVEL="-Osize"
             ;;
         *)
             echo "Invalid choice. Defaulting to O3."
-            _OPT_LEVEL="O3"
+            _OPT_LEVEL="-O3"
             ;;
     esac
 
