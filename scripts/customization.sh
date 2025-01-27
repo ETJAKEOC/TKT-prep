@@ -1,6 +1,9 @@
 #!/bin/bash
 # customization.sh
 
+# Source user-defined entries from the 'customization.cfg' file
+source $_SCRIPT_DIR/customization.cfg
+
 detect_distro_and_set_packaging() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
