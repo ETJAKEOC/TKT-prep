@@ -7,6 +7,7 @@ package_deb() {
 
     # Create the package
     make deb-pkg
+    apt install *.deb
     if [ $? -ne 0 ]; then
         echo "Failed to create Debian package."
         exit 1

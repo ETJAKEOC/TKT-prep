@@ -6,7 +6,8 @@ package_arch() {
     cd $_BUILD_DIR
 
     # Create the package
-    make tar-pkg
+    make pacman-pkg
+    sudo pacman -U *.pkg.tar
     if [ $? -ne 0 ]; then
         echo "Failed to create Arch Linux package."
         exit 1

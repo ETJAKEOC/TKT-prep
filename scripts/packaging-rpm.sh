@@ -7,6 +7,7 @@ package_rpm() {
 
     # Create the package
     make rpm-pkg
+    rpm install *.rpm
     if [ $? -ne 0 ]; then
         echo "Failed to create RPM package."
         exit 1
