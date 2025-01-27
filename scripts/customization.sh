@@ -1,9 +1,6 @@
 #!/bin/bash
 # customization.sh
 
-# Source user-defined entries from the 'customization.cfg' file
-source $_SCRIPT_DIR/customization.cfg
-
 detect_distro_and_set_packaging() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
@@ -118,7 +115,7 @@ customize_installation() {
         # Always use gcc to detect the CPU architecture
         _CPU_MARCH=$(/bin/gcc -march=native -Q --help=target | grep -- '-march=' | awk '{print $2}' | head -n 1)
         if [[ "$_COMPILER" == "clang" ]]; then
-	    _LLVM_ENV="CC=clang CPP=clang-cpp CXX=clang++ LD=ld.lld CC_LD=ld.lld CXX_LD=ld.lld AR=llvm-ar NM=llvm-nm STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump READELF=llvm-readelf RANLIB=llvm-ranlib HOSTCC=clang HOSTCXX=clang++ HOSTAR=llvm-ar HOSTLD=ld.lld"
+	    _LLVM_ENV="CC=/bin/clang CPP=/bin/clang-cpp CXX=/bin/clang++ LD=/bin/ld.lld CC_LD=/bin/ld.lld CXX_LD=/bin/ld.lld AR=/bin/llvm-ar NM=/bin/llvm-nm STRIP=/bin/llvm-strip OBJCOPY=/bin/llvm-objcopy OBJDUMP=/bin/llvm-objdump READELF=/bin/llvm-readelf RANLIB=/bin/llvm-ranlib HOSTCC=/bin/clang HOSTCXX=/bin/clang++ HOSTAR=/bin/llvm-ar HOSTLD=/bin/ld.lld"
             _CFLAGS="-pipe -march=$_CPU_MARCH -mtune=$_CPU_MARCH -flto"
         elif [[ "$_COMPILER" == "gcc" ]]; then
 	    _GCC_ENV="CC=/bin/gcc CPP=/bin/cpp CXX=/bin/c++ LD=/bin/ld CC_LD=/bin/ld CXX_LD=/bin/ld AR=/bin/ar NM=/bin/nm STRIP=/bin/strip OBJCOPY=/bin/objcopy OBJDUMP=/bin/objdump READELF=/bin/readelf RANLIB=/bin/ranlib HOSTCC=/bin/gcc HOSTCXX=/bin/c++ HOSTAR=/bin/ar HOSTLD=/bin/ld"
@@ -138,7 +135,6 @@ customize_installation() {
     echo "2. O2"
     echo "3. O3 (default)"
     echo "4. Ofast"
-    echo "5. Osize"
     read -p "Enter choice (1-5): " _OPT_LEVEL_CHOICE
     case $_OPT_LEVEL_CHOICE in
         1)
@@ -152,9 +148,6 @@ customize_installation() {
             ;;
         4)
             _OPT_LEVEL="fast"
-            ;;
-        5)
-            _OPT_LEVEL="size"
             ;;
         *)
             echo "Invalid choice. Defaulting to O3."
