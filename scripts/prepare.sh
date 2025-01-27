@@ -10,7 +10,6 @@ prepare_env_and_source() {
 		exit 1
 	fi
 
-	if [ ${_KERNEL_VERSION} = 6.12 || 6.13 ]; then;
 	if [ "${_KERNEL_VERSION}" = "6.12" ] || [ "${_KERNEL_VERSION}" = "6.13" ]; then
 		KERNEL_URL="https://gitlab.freedesktop.org/agd5f/linux/-/archive/drm-fixes-${_KERNEL_VERSION}/linux-drm-fixes-${_KERNEL_VERSION}.tar.gz"
 		TAR_FILE="linux-${_KERNEL_VERSION}.tar.gz"

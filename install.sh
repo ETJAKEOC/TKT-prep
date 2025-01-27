@@ -11,8 +11,6 @@ source $_SCRIPT_DIR/scripts/optimization.sh
 source $_SCRIPT_DIR/scripts/patches.sh
 source $_SCRIPT_DIR/scripts/configure.sh
 source $_SCRIPT_DIR/scripts/compile.sh
-
-# Source packaging scripts
 source $_SCRIPT_DIR/scripts/packaging-arch.sh
 source $_SCRIPT_DIR/scripts/packaging-deb.sh
 source $_SCRIPT_DIR/scripts/packaging-rpm.sh
@@ -23,9 +21,8 @@ _main() {
     echo "Loading configuration..."
     [ -f "$_SCRIPT_DIR/customization.cfg" ] && . "$_SCRIPT_DIR/customization.cfg" || echo "Configuration file not found."
 
-    # Customize installation
+    # Load scripts
     customize_installation
-
     prepare_env_and_source
     set_optimization_level
     apply_patches
