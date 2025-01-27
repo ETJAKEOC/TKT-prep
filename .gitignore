@@ -1,4 +1,4 @@
 *.tar.xz
 linux-src
 *.config
-patches/optimize-user.patch
+patches/common/optimize-user.patch

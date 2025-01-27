@@ -60,7 +60,7 @@ customize_installation() {
     _BUILD_DIR=${_BUILD_DIR:-linux-src}
 
     # Set patches directory
-    _PATCHES_DIR="$_SCRIPT_DIR/patches/$_KERNEL_VERSION"
+    _PATCHES_DIR="$_SCRIPT_DIR/patches"
 
     # Prompt for configuration option with running-kernel as the default
     echo "Choose your kernel configuration option:"
